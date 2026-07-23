@@ -8,7 +8,7 @@ A secure, high-performance Java Spring Boot application providing system telemet
 
 - **System Diagnostics**: REST endpoint querying local machine host details and full disk storage partition metrics.
 - **Role-Based Access Control (RBAC)**:
-  - `ROOT`: Master account. Can manage user accounts (CRUD) and API keys. Pre-seeded with username `root` and password `Project!!!111` (cannot be deleted).
+  - `ROOT`: Master account. Can manage user accounts (CRUD) and API keys. Pre-seeded with username `root` and password configured via the `root` environment variable (cannot be deleted).
   - `ADMIN`: Administrator role. Can generate and revoke active access tokens for generic users.
   - `USER`: Customer/client role. Can query the diagnostic endpoints using a generated token key.
 - **Custom Token Security Filter**: Lightweight interceptor validating bearer tokens via standard headers (`Authorization: Bearer <token>`) or query strings (`?token=<token>`).
@@ -104,7 +104,7 @@ The server starts on port **`8080`**.
 ## Interactive Documentation & Portals
 
 1. **Dashboard Interface**: [http://localhost:8080/](http://localhost:8080/)
-   - Log in using credentials: **`root`** / **`Project!!!111`**.
+   - Log in using credentials: username **`root`** and the password set in the `root` environment variable.
    - Manage administrators, view active system keys, copy tokens, or run diagnostics.
 2. **Interactive Swagger UI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
    - Explore endpoints interactively. Use the **Authorize** lock button in the top right to authenticate using your bearer token.

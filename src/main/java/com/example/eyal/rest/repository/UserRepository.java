@@ -34,7 +34,11 @@ public class UserRepository {
     private synchronized void load() {
         if (filePath == null) {
             // Seed root user in memory
-            User root = new User("root", "Project!!!111", UserRole.ROOT);
+            String rootPassword = System.getenv("root");
+            if (rootPassword == null) {
+                rootPassword = "";
+            }
+            User root = new User("root", rootPassword, UserRole.ROOT);
             users.put(root.getUsername(), root);
             return;
         }
@@ -57,10 +61,19 @@ public class UserRepository {
             System.err.println("Error loading users database: " + e.getMessage());
         }
 
-        // Always ensure root exists
-        if (!users.containsKey("root")) {
-            User root = new User("root", "Project!!!111", UserRole.ROOT);
+        // Always ensure root exists and is updated with the current environment variable password
+        String rootPassword = System.getenv("root");
+        if (rootPassword == null) {
+            rootPassword = "";
+        }
+        User root = users.get("root");
+        if (root == null) {
+            root = new User("root", rootPassword, UserRole.ROOT);
             users.put(root.getUsername(), root);
+            persist();
+        } else if (!rootPassword.equals(root.getPassword()) || root.getRole() != UserRole.ROOT) {
+            root.setPassword(rootPassword);
+            root.setRole(UserRole.ROOT);
             persist();
         }
     }
