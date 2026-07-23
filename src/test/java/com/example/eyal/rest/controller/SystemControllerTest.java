@@ -30,6 +30,10 @@ class SystemControllerTest {
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.freeSpaceBytes").isNumber())
                 .andExpect(jsonPath("$.freeSpaceFormatted").exists())
-                .andExpect(jsonPath("$.diskDrives").isArray());
+                .andExpect(jsonPath("$.diskDrives").isArray())
+                .andExpect(jsonPath("$.networkInfo.localIp").exists())
+                .andExpect(jsonPath("$.networkInfo.subnetMask").exists())
+                .andExpect(jsonPath("$.networkInfo.defaultGateway").exists())
+                .andExpect(jsonPath("$.networkInfo.externalIp").exists());
     }
 }

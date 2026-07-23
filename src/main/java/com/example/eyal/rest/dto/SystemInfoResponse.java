@@ -9,5 +9,6 @@ public record SystemInfoResponse(
     String timestamp,
     long freeSpaceBytes,
     String freeSpaceFormatted,
-    List<DiskInfo> diskDrives
+    List<DiskInfo> diskDrives,
+    NetworkInfo networkInfo
 ) {}

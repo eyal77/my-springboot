@@ -46,7 +46,7 @@ public class AuthController {
 
         User user = userOpt.get();
         String tokenVal = UUID.randomUUID().toString();
-        Token sessionToken = new Token(tokenVal, user.getUsername(), user.getRole(), LocalDateTime.now());
+        Token sessionToken = new Token(tokenVal, user.getUsername(), user.getRole(), LocalDateTime.now(), LocalDateTime.now().plusHours(24));
         tokenRepository.save(sessionToken);
 
         return ResponseEntity.ok(Map.of(

@@ -31,8 +31,8 @@ class AdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        userRepository = new UserRepository();
-        tokenRepository = new TokenRepository();
+        userRepository = new UserRepository(null);
+        tokenRepository = new TokenRepository(null);
 
         // Create standard test users
         userRepository.save(new User("test-admin", "adminpass", UserRole.ADMIN));
@@ -40,13 +40,13 @@ class AdminControllerTest {
 
         // Register session/API tokens
         rootToken = "root-session-token";
-        tokenRepository.save(new Token(rootToken, "root", UserRole.ROOT, LocalDateTime.now()));
+        tokenRepository.save(new Token(rootToken, "root", UserRole.ROOT, LocalDateTime.now(), LocalDateTime.now().plusHours(24)));
 
         adminToken = "admin-session-token";
-        tokenRepository.save(new Token(adminToken, "test-admin", UserRole.ADMIN, LocalDateTime.now()));
+        tokenRepository.save(new Token(adminToken, "test-admin", UserRole.ADMIN, LocalDateTime.now(), LocalDateTime.now().plusHours(24)));
 
         userToken = "user-session-token";
-        tokenRepository.save(new Token(userToken, "test-user", UserRole.USER, LocalDateTime.now()));
+        tokenRepository.save(new Token(userToken, "test-user", UserRole.USER, LocalDateTime.now(), LocalDateTime.now().plusHours(24)));
 
         AdminController adminController = new AdminController(userRepository, tokenRepository);
         SystemController systemController = new SystemController(new SystemService());
@@ -101,5 +101,45 @@ class AdminControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"test-user\"}"))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void adminRole_ShouldNotBeAllowedToManageRootTokens() throws Exception {
+        // 1. Admin should not see ROOT tokens in listings
+        mockMvc.perform(get("/api/admin/tokens")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(result -> {
+                    String content = result.getResponse().getContentAsString();
+                    org.junit.jupiter.api.Assertions.assertFalse(content.contains("root-session-token"));
+                });
+
+        // 2. Admin should not be allowed to generate a token for root
+        mockMvc.perform(post("/api/admin/tokens")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"root\"}"))
+                .andExpect(status().isForbidden());
+
+        // 3. Admin should not be allowed to delete/revoke root tokens
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/admin/tokens/" + rootToken)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void expiredToken_ShouldBeUnauthorized() throws Exception {
+        String expiredToken = "expired-user-token";
+        tokenRepository.save(new Token(
+                expiredToken, 
+                "test-user", 
+                UserRole.USER, 
+                LocalDateTime.now().minusHours(2), 
+                LocalDateTime.now().minusHours(1)
+        ));
+
+        mockMvc.perform(get("/api/system-info")
+                        .header("Authorization", "Bearer " + expiredToken))
+                .andExpect(status().isUnauthorized());
     }
 }

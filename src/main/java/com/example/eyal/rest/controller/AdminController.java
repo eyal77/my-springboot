@@ -75,20 +75,31 @@ public class AdminController {
     }
 
     // --- Token Administration (ADMIN or ROOT) ---
-
+    
     @GetMapping("/tokens")
     @Operation(summary = "List all tokens", description = "Retrieve all active authentication and session tokens (ADMIN or ROOT only).")
     public ResponseEntity<List<Token>> listTokens() {
-        return ResponseEntity.ok(tokenRepository.findAll());
+        com.example.eyal.rest.model.UserRole callerRole = com.example.eyal.rest.security.SecurityContext.getCurrentRole();
+        List<Token> allTokens = tokenRepository.findAll();
+        
+        if (callerRole == com.example.eyal.rest.model.UserRole.ADMIN) {
+            // Admin can only view tokens of equal or lesser privilege (ADMIN, USER)
+            List<Token> filtered = allTokens.stream()
+                    .filter(t -> t.getRole() != com.example.eyal.rest.model.UserRole.ROOT)
+                    .toList();
+            return ResponseEntity.ok(filtered);
+        }
+        return ResponseEntity.ok(allTokens);
     }
 
     @PostMapping("/tokens")
-    @Operation(summary = "Generate user access token", description = "Creates a new access token for a specific user (ADMIN or ROOT only).")
-    public ResponseEntity<?> generateToken(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
-        if (username == null || username.isBlank()) {
+    @Operation(summary = "Generate user access token", description = "Creates a new access token for a specific user (ADMIN or ROOT only). Expiration hours must be between 1 and 24.")
+    public ResponseEntity<?> generateToken(@RequestBody Map<String, Object> request) {
+        Object usernameObj = request.get("username");
+        if (usernameObj == null || usernameObj.toString().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Username is required."));
         }
+        String username = usernameObj.toString();
 
         Optional<User> userOpt = userRepository.findByUsername(username);
         if (userOpt.isEmpty()) {
@@ -97,8 +108,35 @@ public class AdminController {
         }
 
         User user = userOpt.get();
+        com.example.eyal.rest.model.UserRole callerRole = com.example.eyal.rest.security.SecurityContext.getCurrentRole();
+        
+        // Admin cannot generate a token for ROOT
+        if (callerRole == com.example.eyal.rest.model.UserRole.ADMIN && user.getRole() == com.example.eyal.rest.model.UserRole.ROOT) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Admin is not allowed to generate tokens for users with ROOT privileges."));
+        }
+
+        Object expObj = request.get("expirationHours");
+        int expirationHours = 24; // default
+        if (expObj != null) {
+            try {
+                if (expObj instanceof Number) {
+                    expirationHours = ((Number) expObj).intValue();
+                } else {
+                    expirationHours = Integer.parseInt(expObj.toString().trim());
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid expirationHours format. Must be an integer."));
+            }
+        }
+
+        if (expirationHours < 1 || expirationHours > 24) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Token expiration hours must be between 1 and 24."));
+        }
+
         String tokenVal = UUID.randomUUID().toString();
-        Token token = new Token(tokenVal, user.getUsername(), user.getRole(), LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        Token token = new Token(tokenVal, user.getUsername(), user.getRole(), now, now.plusHours(expirationHours));
         tokenRepository.save(token);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(token);
@@ -107,10 +145,21 @@ public class AdminController {
     @DeleteMapping("/tokens/{tokenValue}")
     @Operation(summary = "Revoke access token", description = "Revokes and deletes an active token (ADMIN or ROOT only).")
     public ResponseEntity<?> revokeToken(@PathVariable String tokenValue) {
-        boolean deleted = tokenRepository.delete(tokenValue);
-        if (!deleted) {
+        Optional<Token> tokenOpt = tokenRepository.findByTokenValue(tokenValue);
+        if (tokenOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Token not found."));
         }
+
+        Token token = tokenOpt.get();
+        com.example.eyal.rest.model.UserRole callerRole = com.example.eyal.rest.security.SecurityContext.getCurrentRole();
+        
+        // Admin cannot revoke a token belonging to ROOT
+        if (callerRole == com.example.eyal.rest.model.UserRole.ADMIN && token.getRole() == com.example.eyal.rest.model.UserRole.ROOT) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Admin is not allowed to revoke tokens belonging to users with ROOT privileges."));
+        }
+
+        tokenRepository.delete(tokenValue);
         return ResponseEntity.ok(Map.of("message", "Token revoked successfully."));
     }
 }

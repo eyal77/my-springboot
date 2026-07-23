@@ -50,6 +50,11 @@ public class SecurityFilter implements Filter {
         }
 
         Token token = tokenOpt.get();
+        if (token.isExpired()) {
+            tokenRepository.delete(tokenVal);
+            sendUnauthorized(httpResponse, "Token has expired.");
+            return;
+        }
         UserRole role = token.getRole();
         SecurityContext.set(token.getUsername(), role);
 

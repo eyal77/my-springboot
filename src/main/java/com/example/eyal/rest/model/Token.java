@@ -1,5 +1,6 @@
 package com.example.eyal.rest.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 
 public class Token {
@@ -7,14 +8,16 @@ public class Token {
     private String username;
     private UserRole role;
     private LocalDateTime createdAt;
+    private LocalDateTime expiresAt;
 
     public Token() {}
 
-    public Token(String tokenValue, String username, UserRole role, LocalDateTime createdAt) {
+    public Token(String tokenValue, String username, UserRole role, LocalDateTime createdAt, LocalDateTime expiresAt) {
         this.tokenValue = tokenValue;
         this.username = username;
         this.role = role;
         this.createdAt = createdAt;
+        this.expiresAt = expiresAt;
     }
 
     public String getTokenValue() {
@@ -47,5 +50,18 @@ public class Token {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    @JsonIgnore
+    public boolean isExpired() {
+        return expiresAt != null && expiresAt.isBefore(LocalDateTime.now());
     }
 }
