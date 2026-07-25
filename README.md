@@ -105,6 +105,22 @@ The server starts on port **`8080`**.
 
 1. **Dashboard Interface**: [http://localhost:8080/](http://localhost:8080/)
    - Log in using credentials: username **`root`** and the password set in the `root` environment variable.
+     - **Windows (Command Prompt / CMD)**:
+       ```cmd
+       set root=your_password
+       .\mvnw.cmd spring-boot:run
+       ```
+     - **Windows (PowerShell)**:
+       ```powershell
+       $env:root="your_password"
+       .\mvnw.cmd spring-boot:run
+       ```
+     - **Linux / macOS**:
+       ```bash
+       export root="your_password"
+       ./mvnw spring-boot:run
+       ```
+     - *Note: If the `root` environment variable is not set, it defaults to an empty string (`""`).*
    - Manage administrators, view active system keys, copy tokens, or run diagnostics.
 2. **Interactive Swagger UI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
    - Explore endpoints interactively. Use the **Authorize** lock button in the top right to authenticate using your bearer token.

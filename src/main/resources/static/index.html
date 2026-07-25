@@ -527,6 +527,38 @@
                             Log In
                         </button>
                     </form>
+
+                    <!-- Help section for setting root password -->
+                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+                        <button type="button" class="btn btn-secondary" onclick="toggleHelp()" style="background: transparent; border: none; padding: 0; color: var(--primary); font-size: 0.85rem; width: auto; justify-content: flex-start; text-decoration: underline; display: inline-flex; align-items: center;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.35rem;"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            Need help logging in as root?
+                        </button>
+                        <div id="root-help-content" class="hidden" style="margin-top: 0.75rem; font-size: 0.8rem; line-height: 1.45; color: var(--text-muted); background: rgba(0, 0, 0, 0.2); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <p style="margin-bottom: 0.5rem;">
+                                The <strong>root</strong> user credentials require the password set in the <code>root</code> environment variable on the server.
+                            </p>
+                            <p style="margin-bottom: 0.5rem; font-weight: 600;">How to set the environment variable:</p>
+                            <div style="margin-bottom: 0.5rem;">
+                                <span style="color: var(--primary); font-weight: 600; display: block; margin-bottom: 0.15rem;">Windows (CMD):</span>
+                                <pre style="background: rgba(255,255,255,0.05); padding: 0.35rem 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.75rem; margin: 0; color: var(--text-main); border: 1px solid rgba(255,255,255,0.05);">set root=your_password
+.\mvnw.cmd spring-boot:run</pre>
+                            </div>
+                            <div style="margin-bottom: 0.5rem;">
+                                <span style="color: var(--primary); font-weight: 600; display: block; margin-bottom: 0.15rem;">Windows (PowerShell):</span>
+                                <pre style="background: rgba(255,255,255,0.05); padding: 0.35rem 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.75rem; margin: 0; color: var(--text-main); border: 1px solid rgba(255,255,255,0.05);">$env:root="your_password"
+.\mvnw.cmd spring-boot:run</pre>
+                            </div>
+                            <div>
+                                <span style="color: var(--primary); font-weight: 600; display: block; margin-bottom: 0.15rem;">Linux / macOS:</span>
+                                <pre style="background: rgba(255,255,255,0.05); padding: 0.35rem 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.75rem; margin: 0; color: var(--text-main); border: 1px solid rgba(255,255,255,0.05);">export root="your_password"
+./mvnw spring-boot:run</pre>
+                            </div>
+                            <p style="margin-top: 0.5rem; font-style: italic; font-size: 0.75rem; color: var(--text-muted);">
+                                Note: If not set, the root password defaults to an empty string.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -796,6 +828,15 @@
             // Switch to login panel
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.getElementById('login-tab').classList.add('active');
+        }
+
+        function toggleHelp() {
+            const helpContent = document.getElementById('root-help-content');
+            if (helpContent.classList.contains('hidden')) {
+                helpContent.classList.remove('hidden');
+            } else {
+                helpContent.classList.add('hidden');
+            }
         }
 
         function showDashboard() {
