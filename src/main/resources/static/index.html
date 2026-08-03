@@ -1417,10 +1417,43 @@
                 <div class="part-details-row" style="display: flex; gap: 0.5rem; align-items: center;">
                     <input type="text" class="form-input part-content-type" placeholder="Content-Type (e.g. image/png)" style="flex: 1; height: 42px;" value="application/octet-stream" required>
                     <input type="text" class="form-input part-val-text hidden" placeholder="Text Value" style="flex: 1.5; height: 42px;">
-                    <input type="file" class="form-input part-val-file" style="flex: 1.5; padding: 0.35rem 0.5rem; height: 42px;" onchange="updateCurlCommand()" required>
+                    <input type="file" class="form-input part-val-file" style="flex: 1.5; padding: 0.35rem 0.5rem; height: 42px;" onchange="handleFileSelectionChange(this)" required>
                 </div>
             `;
             container.appendChild(div);
+            updateCurlCommand();
+        }
+
+        function handleFileSelectionChange(fileInputEl) {
+            const partRow = fileInputEl.parentElement.parentElement;
+            const contentTypeInput = partRow.querySelector('.part-content-type');
+            if (fileInputEl.files && fileInputEl.files.length > 0) {
+                const file = fileInputEl.files[0];
+                let mimeType = file.type;
+                if (!mimeType) {
+                    // Try to guess from extension
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const mimeMap = {
+                        'png': 'image/png',
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'gif': 'image/gif',
+                        'webp': 'image/webp',
+                        'svg': 'image/svg+xml',
+                        'pdf': 'application/pdf',
+                        'txt': 'text/plain',
+                        'json': 'application/json',
+                        'html': 'text/html',
+                        'xml': 'application/xml',
+                        'zip': 'application/zip',
+                        'bin': 'application/octet-stream'
+                    };
+                    mimeType = mimeMap[ext] || 'application/octet-stream';
+                }
+                if (contentTypeInput) {
+                    contentTypeInput.value = mimeType;
+                }
+            }
             updateCurlCommand();
         }
 
@@ -1480,8 +1513,7 @@
                         }
                     } else {
                         const textVal = row.querySelector('.part-val-text').value;
-                        const blob = new Blob([textVal], { type: contentType });
-                        formData.append(name, blob);
+                        formData.append(name, textVal);
                     }
                 }
                 

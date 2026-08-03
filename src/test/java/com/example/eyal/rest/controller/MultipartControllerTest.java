@@ -9,6 +9,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -93,6 +95,34 @@ class MultipartControllerTest {
     }
 
     @Test
+    void uploadTextParts_ShouldSaveAsPropertiesFile() throws Exception {
+        MockMultipartFile textPart1 = new MockMultipartFile(
+                "username",
+                "blob",
+                "text/plain",
+                "jane_doe".getBytes()
+        );
+        MockMultipartFile textPart2 = new MockMultipartFile(
+                "role",
+                "",
+                "text/plain",
+                "ADMIN".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/multipart").file(textPart1).file(textPart2))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.uploadedFiles[0].fileName").value("upload.properties"))
+                .andExpect(jsonPath("$.uploadedFiles[0].parameterName").value("properties"));
+
+        // Verify properties content
+        Path propFile = tempDir.resolve("upload.properties");
+        List<String> lines = Files.readAllLines(propFile);
+        org.junit.jupiter.api.Assertions.assertTrue(lines.contains("username=jane_doe"));
+        org.junit.jupiter.api.Assertions.assertTrue(lines.contains("role=ADMIN"));
+    }
+
+    @Test
     void uploadFile_EmptyFile_ShouldReturnBadRequest() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "anotherCustomKey",
@@ -104,7 +134,7 @@ class MultipartControllerTest {
         mockMvc.perform(multipart("/api/multipart").file(file))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.message").value("All uploaded files were empty"));
+                .andExpect(jsonPath("$.message").value("All uploaded parts were empty"));
     }
 
     @Test
@@ -112,6 +142,6 @@ class MultipartControllerTest {
         mockMvc.perform(multipart("/api/multipart"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.message").value("No files found in the multipart request"));
+                .andExpect(jsonPath("$.message").value("No parts found in the multipart request"));
     }
 }
