@@ -3,11 +3,17 @@ package com.example.eyal.rest;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @SpringBootApplication
 public class RestApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(RestApplication.class, args);
-	}
+	private static final Logger log = LoggerFactory.getLogger(RestApplication.class);
 
+	public static void main(String[] args) {
+		log.debug("Initializing RestApplication main method with arguments count: {}", args != null ? args.length : 0);
+		SpringApplication.run(RestApplication.class, args);
+		log.info("RestApplication started successfully.");
+	}
 }

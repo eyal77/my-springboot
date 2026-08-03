@@ -16,10 +16,16 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 public class SystemService {
 
+    private static final Logger log = LoggerFactory.getLogger(SystemService.class);
+
     public SystemInfoResponse getSystemInfo() {
+        log.debug("getSystemInfo: Gathering host diagnostics...");
         String hostname = getHostName();
         ZonedDateTime now = ZonedDateTime.now();
 
@@ -32,6 +38,7 @@ public class SystemService {
 
         File[] roots = File.listRoots();
         if (roots != null) {
+            log.debug("getSystemInfo: Listing {} disk root drives...", roots.length);
             for (File root : roots) {
                 long total = root.getTotalSpace();
                 long free = root.getFreeSpace();
@@ -47,10 +54,15 @@ public class SystemService {
                     formatBytes(usable)
                 ));
             }
+        } else {
+            log.warn("getSystemInfo: File.listRoots() returned null.");
         }
 
         NetworkInfo networkInfo = getNetworkDetails();
 
+        log.debug("getSystemInfo completed: host={}, freeBytes={}, interfacesParsed={}", 
+            hostname, totalFreeBytes, networkInfo != null);
+            
         return new SystemInfoResponse(
             hostname,
             dateStr,
@@ -64,9 +76,13 @@ public class SystemService {
     }
 
     private String getHostName() {
+        log.debug("getHostName: Attempting to resolve local host details...");
         try {
-            return InetAddress.getLocalHost().getHostName();
+            String name = InetAddress.getLocalHost().getHostName();
+            log.debug("getHostName: InetAddress.getLocalHost() succeeded: {}", name);
+            return name;
         } catch (UnknownHostException e) {
+            log.warn("getHostName: InetAddress.getLocalHost() failed, looking up env properties. Error: {}", e.getMessage());
             String computerName = System.getenv("COMPUTERNAME");
             if (computerName != null && !computerName.isBlank()) {
                 return computerName;
@@ -80,6 +96,7 @@ public class SystemService {
     }
 
     private NetworkInfo getNetworkDetails() {
+        log.debug("getNetworkDetails: Querying network interfaces...");
         String localIp = "N/A";
         String subnetMask = "N/A";
 
@@ -101,9 +118,10 @@ public class SystemService {
                 if (!"N/A".equals(localIp)) break;
             }
         } catch (Exception e) {
-            // fallback
+            log.error("getNetworkDetails: Exception reading interface addresses: {}", e.getMessage(), e);
         }
 
+        log.debug("getNetworkDetails: Found Local IP: {}, Subnet: {}", localIp, subnetMask);
         String defaultGateway = getDefaultGateway();
         String externalIp = getExternalIp();
 
@@ -111,6 +129,7 @@ public class SystemService {
     }
 
     private String prefixLengthToMask(short prefix) {
+        log.debug("prefixLengthToMask conversion input: {}", prefix);
         int mask = 0xffffffff << (32 - prefix);
         byte[] bytes = new byte[]{
                 (byte) ((mask >>> 24) & 0xFF),
@@ -121,12 +140,14 @@ public class SystemService {
         try {
             return InetAddress.getByAddress(bytes).getHostAddress();
         } catch (Exception e) {
+            log.error("prefixLengthToMask failed: {}", e.getMessage());
             return "N/A";
         }
     }
 
     private String getDefaultGateway() {
         String os = System.getProperty("os.name").toLowerCase();
+        log.debug("getDefaultGateway: Detected OS: {}", os);
         if (os.contains("win")) {
             return getDefaultGatewayWindows();
         } else {
@@ -135,6 +156,7 @@ public class SystemService {
     }
 
     private String getDefaultGatewayWindows() {
+        log.debug("getDefaultGatewayWindows executing 'route print 0.0.0.0'...");
         try {
             Process process = Runtime.getRuntime().exec("route print 0.0.0.0");
             try (java.io.BufferedReader reader = new java.io.BufferedReader(
@@ -145,18 +167,21 @@ public class SystemService {
                     if (line.startsWith("0.0.0.0")) {
                         String[] parts = line.split("\\s+");
                         if (parts.length >= 3) {
-                            return parts[2];
+                            String gateway = parts[2];
+                            log.debug("getDefaultGatewayWindows found gateway: {}", gateway);
+                            return gateway;
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            // fallback
+            log.error("getDefaultGatewayWindows failed: {}", e.getMessage());
         }
         return "N/A";
     }
 
     private String getDefaultGatewayUnix() {
+        log.debug("getDefaultGatewayUnix executing 'netstat -rn'...");
         try {
             Process process = Runtime.getRuntime().exec("netstat -rn");
             try (java.io.BufferedReader reader = new java.io.BufferedReader(
@@ -167,18 +192,21 @@ public class SystemService {
                     if (line.startsWith("default") || line.startsWith("0.0.0.0")) {
                         String[] parts = line.split("\\s+");
                         if (parts.length >= 2) {
-                            return parts[1];
+                            String gateway = parts[1];
+                            log.debug("getDefaultGatewayUnix found gateway: {}", gateway);
+                            return gateway;
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            // fallback
+            log.error("getDefaultGatewayUnix failed: {}", e.getMessage());
         }
         return "N/A";
     }
 
     private String getExternalIp() {
+        log.debug("getExternalIp: Executing HTTP call to api.ipify.org...");
         try {
             java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
                     .connectTimeout(java.time.Duration.ofSeconds(2))
@@ -187,10 +215,13 @@ public class SystemService {
                     .uri(java.net.URI.create("https://api.ipify.org"))
                     .timeout(java.time.Duration.ofSeconds(2))
                     .build();
-            return client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+            String ip = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
                     .body()
                     .trim();
+            log.debug("getExternalIp returned: {}", ip);
+            return ip;
         } catch (Exception e) {
+            log.warn("getExternalIp: HTTP request failed (client is likely offline or site is blocked): {}", e.getMessage());
             return "Offline/Unknown";
         }
     }

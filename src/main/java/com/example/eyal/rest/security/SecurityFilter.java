@@ -12,10 +12,14 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Component
 @Order(1)
 public class SecurityFilter implements Filter {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityFilter.class);
     private final TokenRepository tokenRepository;
 
     public SecurityFilter(TokenRepository tokenRepository) {
@@ -29,9 +33,11 @@ public class SecurityFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         String path = httpRequest.getRequestURI();
+        log.debug("doFilter entry: URI path intercepted: {}", path);
 
         // 1. Allow public paths
         if (isPublicPath(path)) {
+            log.debug("doFilter: Public path allowed: {}", path);
             chain.doFilter(request, response);
             return;
         }
@@ -39,23 +45,27 @@ public class SecurityFilter implements Filter {
         // 2. Extract Token
         String tokenVal = extractToken(httpRequest);
         if (tokenVal == null || tokenVal.isBlank()) {
+            log.warn("doFilter: Authentication token missing for request: {}", path);
             sendUnauthorized(httpResponse, "Authentication token is missing.");
             return;
         }
 
         Optional<Token> tokenOpt = tokenRepository.findByTokenValue(tokenVal);
         if (tokenOpt.isEmpty()) {
+            log.warn("doFilter: Invalid token submitted for request: {}", path);
             sendUnauthorized(httpResponse, "Invalid or expired token.");
             return;
         }
 
         Token token = tokenOpt.get();
         if (token.isExpired()) {
+            log.warn("doFilter: Token has expired for username: {} (request path: {})", token.getUsername(), path);
             tokenRepository.delete(tokenVal);
             sendUnauthorized(httpResponse, "Token has expired.");
             return;
         }
         UserRole role = token.getRole();
+        log.debug("doFilter: Valid token found. User: {}, Role: {}", token.getUsername(), role);
         SecurityContext.set(token.getUsername(), role);
 
         try {
@@ -63,12 +73,14 @@ public class SecurityFilter implements Filter {
             if (path.startsWith("/api/admin/users")) {
                 // Root only
                 if (role != UserRole.ROOT) {
+                    log.warn("doFilter: Forbidden. ROOT role required for path {}, actual role: {}", path, role);
                     sendForbidden(httpResponse, "Access denied: Root privilege required.");
                     return;
                 }
             } else if (path.startsWith("/api/admin/tokens")) {
                 // Admin or Root
                 if (role != UserRole.ADMIN && role != UserRole.ROOT) {
+                    log.warn("doFilter: Forbidden. ADMIN or ROOT role required for path {}, actual role: {}", path, role);
                     sendForbidden(httpResponse, "Access denied: Admin or Root privilege required.");
                     return;
                 }
@@ -77,14 +89,16 @@ public class SecurityFilter implements Filter {
                 // Permission granted
             }
 
+            log.debug("doFilter: Access authorized. Forwarding filter chain.");
             chain.doFilter(request, response);
         } finally {
             SecurityContext.clear();
+            log.debug("doFilter exit: Cleared SecurityContext");
         }
     }
 
     private boolean isPublicPath(String path) {
-        return path.equals("/") ||
+        boolean result = path.equals("/") ||
                path.startsWith("/index.html") ||
                path.startsWith("/css/") ||
                path.startsWith("/js/") ||
@@ -94,25 +108,34 @@ public class SecurityFilter implements Filter {
                path.startsWith("/swagger-ui") ||
                path.equals("/admin") ||
                path.equals("/admin/");
+        log.debug("isPublicPath lookup: path={}, result={}", path, result);
+        return result;
     }
 
     private String extractToken(HttpServletRequest request) {
         // Check standard Authorization header
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            log.debug("extractToken: Found bearer token in Authorization header");
             return authHeader.substring(7).trim();
         }
         // Fallback to query parameter (e.g. ?token=...)
-        return request.getParameter("token");
+        String paramToken = request.getParameter("token");
+        if (paramToken != null) {
+            log.debug("extractToken: Found token in request query parameter");
+        }
+        return paramToken;
     }
 
     private void sendUnauthorized(HttpServletResponse response, String message) throws IOException {
+        log.debug("sendUnauthorized response triggered: {}", message);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.getWriter().write(String.format("{\"error\": \"Unauthorized\", \"message\": \"%s\"}", message));
     }
 
     private void sendForbidden(HttpServletResponse response, String message) throws IOException {
+        log.debug("sendForbidden response triggered: {}", message);
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json");
         response.getWriter().write(String.format("{\"error\": \"Forbidden\", \"message\": \"%s\"}", message));
