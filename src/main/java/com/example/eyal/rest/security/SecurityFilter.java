@@ -91,7 +91,9 @@ public class SecurityFilter implements Filter {
                path.startsWith("/favicon.ico") ||
                path.equals("/api/auth/login") ||
                path.startsWith("/v3/api-docs") ||
-               path.startsWith("/swagger-ui");
+               path.startsWith("/swagger-ui") ||
+               path.equals("/admin") ||
+               path.equals("/admin/");
     }
 
     private String extractToken(HttpServletRequest request) {

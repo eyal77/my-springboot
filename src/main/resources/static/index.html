@@ -636,11 +636,15 @@
                         Select a registered user to generate a new long-lived API token.
                     </p>
                     <form onsubmit="handleGenerateToken(event)">
-                        <div class="form-group">
+                        <div class="form-group" id="token-select-group">
                             <label class="form-label" for="token-user-select">Assign User</label>
                             <select class="form-input" id="token-user-select" required style="background-color: #111827;">
                                 <!-- Dynamic user options -->
                             </select>
+                        </div>
+                        <div class="form-group hidden" id="token-input-group">
+                            <label class="form-label" for="token-username-input">Assign User (Username)</label>
+                            <input class="form-input" type="text" id="token-username-input" placeholder="e.g. user_jane" style="background-color: #111827;">
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="token-expiration-input">Expiration Hours (Max 24)</label>
@@ -830,6 +834,17 @@
                     </div>
                     
                     <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- Equivalent cURL Command -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                <span class="form-label" style="margin-bottom: 0;">Equivalent cURL Command</span>
+                                <button type="button" class="btn btn-secondary" onclick="copyCurlCommand()" style="padding: 0.2rem 0.4rem; font-size: 0.7rem; width: auto; height: auto;">
+                                    Copy cURL
+                                </button>
+                            </div>
+                            <pre id="equivalent-curl" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.15); padding: 0.75rem; border-radius: var(--radius-sm); font-family: monospace; font-size: 0.8rem; max-height: 120px; overflow-y: auto; color: #a5b4fc; white-space: pre-wrap; word-break: break-all;">No request built yet.</pre>
+                        </div>
+
                         <!-- Response Headers -->
                         <div>
                             <span class="form-label" style="display: block; margin-bottom: 0.25rem;">Response Headers</span>
@@ -1114,6 +1129,11 @@
         // --- Token Management API ---
 
         async function fetchUserSelectionList() {
+            const selectGroup = document.getElementById('token-select-group');
+            const inputGroup = document.getElementById('token-input-group');
+            const select = document.getElementById('token-user-select');
+            const input = document.getElementById('token-username-input');
+
             try {
                 const response = await fetch('/api/admin/users', {
                     headers: { 'Authorization': `Bearer ${currentUser.token}` }
@@ -1122,8 +1142,10 @@
                 
                 // Fallback for admins who can't list users directly
                 if (response.status === 403) {
-                    const select = document.getElementById('token-user-select');
-                    select.innerHTML = '<option value="">Enter target username manually below</option>';
+                    selectGroup.classList.add('hidden');
+                    inputGroup.classList.remove('hidden');
+                    select.required = false;
+                    input.required = true;
                     return;
                 }
                 
@@ -1131,7 +1153,11 @@
                 const users = await response.json();
                 console.log("fetchUserSelectionList users:", users);
 
-                const select = document.getElementById('token-user-select');
+                selectGroup.classList.remove('hidden');
+                inputGroup.classList.add('hidden');
+                select.required = true;
+                input.required = false;
+
                 select.innerHTML = '';
                 
                 users.forEach(user => {
@@ -1202,7 +1228,9 @@
 
         async function handleGenerateToken(e) {
             e.preventDefault();
-            const username = document.getElementById('token-user-select').value;
+            const username = currentUser.role === 'ADMIN'
+                ? document.getElementById('token-username-input').value.trim()
+                : document.getElementById('token-user-select').value;
             const expirationHours = parseInt(document.getElementById('token-expiration-input').value);
 
             try {
@@ -1341,6 +1369,7 @@
             if (partsContainer.children.length === 0) {
                 addPartRow();
             }
+            updateCurlCommand();
         }
 
         function addHeaderRow(key = '', val = '') {
@@ -1354,11 +1383,12 @@
             div.innerHTML = `
                 <input type="text" class="form-input header-key" placeholder="Header Name" style="flex: 1;" value="${key}" required>
                 <input type="text" class="form-input header-val" placeholder="Value" style="flex: 1.5;" value="${val}" required>
-                <button type="button" class="btn btn-secondary" onclick="this.parentElement.remove()" style="padding: 0.5rem; color: var(--danger); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); height: 42px; display: inline-flex; align-items: center; justify-content: center;">
+                <button type="button" class="btn btn-secondary" onclick="this.parentElement.remove(); updateCurlCommand();" style="padding: 0.5rem; color: var(--danger); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); height: 42px; display: inline-flex; align-items: center; justify-content: center;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
             `;
             container.appendChild(div);
+            updateCurlCommand();
         }
 
         function addPartRow() {
@@ -1380,17 +1410,18 @@
                         <option value="text">Text / Value</option>
                     </select>
                     <input type="text" class="form-input part-name" placeholder="Part Name (Key)" style="flex: 1.5; height: 42px;" value="file" required>
-                    <button type="button" class="btn btn-secondary" onclick="this.parentElement.parentElement.remove()" style="padding: 0.5rem; color: var(--danger); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); height: 42px; display: inline-flex; align-items: center; justify-content: center;">
+                    <button type="button" class="btn btn-secondary" onclick="this.parentElement.parentElement.remove(); updateCurlCommand();" style="padding: 0.5rem; color: var(--danger); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); height: 42px; display: inline-flex; align-items: center; justify-content: center;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
                 </div>
                 <div class="part-details-row" style="display: flex; gap: 0.5rem; align-items: center;">
                     <input type="text" class="form-input part-content-type" placeholder="Content-Type (e.g. image/png)" style="flex: 1; height: 42px;" value="application/octet-stream" required>
                     <input type="text" class="form-input part-val-text hidden" placeholder="Text Value" style="flex: 1.5; height: 42px;">
-                    <input type="file" class="form-input part-val-file" style="flex: 1.5; padding: 0.35rem 0.5rem; height: 42px;" required>
+                    <input type="file" class="form-input part-val-file" style="flex: 1.5; padding: 0.35rem 0.5rem; height: 42px;" onchange="updateCurlCommand()" required>
                 </div>
             `;
             container.appendChild(div);
+            updateCurlCommand();
         }
 
         function togglePartValueField(selectEl) {
@@ -1511,6 +1542,65 @@
                 responseHeadersPre.innerText = 'Failed to connect to server.';
                 responseBodyPre.innerText = error.toString();
             }
+        }
+
+        function updateCurlCommand() {
+            const urlInput = document.getElementById('request-url');
+            if (!urlInput) return;
+            const url = urlInput.value.trim() || 'http://localhost:8080/api/multipart';
+            let curl = `curl -X POST "${url}"`;
+            
+            // Headers
+            const headerRows = document.querySelectorAll('.header-row');
+            for (const row of headerRows) {
+                const key = row.querySelector('.header-key').value.trim();
+                const val = row.querySelector('.header-val').value.trim();
+                if (key) {
+                    curl += ` \\\n  -H "${key}: ${val}"`;
+                }
+            }
+            
+            // Parts
+            const partRows = document.querySelectorAll('.part-row');
+            for (const row of partRows) {
+                const type = row.querySelector('.part-type').value;
+                const name = row.querySelector('.part-name').value.trim();
+                const contentType = row.querySelector('.part-content-type').value.trim();
+                
+                if (type === 'file') {
+                    const fileInput = row.querySelector('.part-val-file');
+                    let fileName = 'file.bin';
+                    if (fileInput && fileInput.files.length > 0) {
+                        fileName = fileInput.files[0].name;
+                    }
+                    curl += ` \\\n  -F "${name}=@${fileName};type=${contentType}"`;
+                } else {
+                    const textInput = row.querySelector('.part-val-text');
+                    const textVal = textInput ? textInput.value : '';
+                    curl += ` \\\n  -F "${name}=${textVal}"`;
+                }
+            }
+            
+            const curlPre = document.getElementById('equivalent-curl');
+            if (curlPre) {
+                curlPre.innerText = curl;
+            }
+        }
+
+        function copyCurlCommand() {
+            const curlText = document.getElementById('equivalent-curl').innerText;
+            navigator.clipboard.writeText(curlText).then(() => {
+                showToast("cURL command copied to clipboard!");
+            }).catch(() => {
+                showToast("Failed to copy cURL command.", "error");
+            });
+        }
+
+        // Attach dynamic updates to form inputs
+        const form = document.getElementById('multipart-form');
+        if (form) {
+            form.addEventListener('input', updateCurlCommand);
+            form.addEventListener('change', updateCurlCommand);
         }
     </script>
 </body>

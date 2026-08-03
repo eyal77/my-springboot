@@ -31,7 +31,7 @@ class MultipartControllerTest {
     @Test
     void uploadFile_ShouldSaveFileAndReturnSuccess() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
-                "file",
+                "customFileKey",
                 "test.txt",
                 "text/plain",
                 "Hello, World!".getBytes()
@@ -40,16 +40,62 @@ class MultipartControllerTest {
         mockMvc.perform(multipart("/api/multipart").file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
-                .andExpect(jsonPath("$.fileName").value("test.txt"))
-                .andExpect(jsonPath("$.fileSize").value(13))
-                .andExpect(jsonPath("$.contentType").value("text/plain"))
-                .andExpect(jsonPath("$.savedPath").exists());
+                .andExpect(jsonPath("$.uploadedFiles[0].fileName").value("test.txt"))
+                .andExpect(jsonPath("$.uploadedFiles[0].fileSize").value(13))
+                .andExpect(jsonPath("$.uploadedFiles[0].contentType").value("text/plain"))
+                .andExpect(jsonPath("$.uploadedFiles[0].savedPath").exists());
+    }
+
+    @Test
+    void uploadMultipleFiles_ShouldSaveAllFilesAndReturnSuccess() throws Exception {
+        MockMultipartFile file1 = new MockMultipartFile(
+                "file1",
+                "test1.txt",
+                "text/plain",
+                "Hello, First!".getBytes()
+        );
+        MockMultipartFile file2 = new MockMultipartFile(
+                "file2",
+                "test2.txt",
+                "text/plain",
+                "Hello, Second!!".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/multipart").file(file1).file(file2))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.uploadedFiles.length()").value(2))
+                .andExpect(jsonPath("$.uploadedFiles[?(@.fileName == 'test1.txt')].fileSize").value(13))
+                .andExpect(jsonPath("$.uploadedFiles[?(@.fileName == 'test2.txt')].fileSize").value(15));
+    }
+
+    @Test
+    void uploadMultipleFilesSameKey_ShouldSaveAllFilesAndReturnSuccess() throws Exception {
+        MockMultipartFile file1 = new MockMultipartFile(
+                "file",
+                "test1.txt",
+                "text/plain",
+                "Hello, First!".getBytes()
+        );
+        MockMultipartFile file2 = new MockMultipartFile(
+                "file",
+                "test2.txt",
+                "text/plain",
+                "Hello, Second!!".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/multipart").file(file1).file(file2))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.uploadedFiles.length()").value(2))
+                .andExpect(jsonPath("$.uploadedFiles[?(@.fileName == 'test1.txt')].parameterName").value("file"))
+                .andExpect(jsonPath("$.uploadedFiles[?(@.fileName == 'test2.txt')].parameterName").value("file"));
     }
 
     @Test
     void uploadFile_EmptyFile_ShouldReturnBadRequest() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
-                "file",
+                "anotherCustomKey",
                 "empty.txt",
                 "text/plain",
                 new byte[0]
@@ -58,6 +104,14 @@ class MultipartControllerTest {
         mockMvc.perform(multipart("/api/multipart").file(file))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.message").value("Uploaded file is empty"));
+                .andExpect(jsonPath("$.message").value("All uploaded files were empty"));
+    }
+
+    @Test
+    void uploadFile_NoFiles_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(multipart("/api/multipart"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("No files found in the multipart request"));
     }
 }
