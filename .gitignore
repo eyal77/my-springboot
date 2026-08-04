@@ -33,3 +33,5 @@ build/
 .vscode/
 *.dat
 *.dat
+tokens.dat
+users.dat

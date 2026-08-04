@@ -34,6 +34,10 @@ class SystemControllerTest {
                 .andExpect(jsonPath("$.networkInfo.localIp").exists())
                 .andExpect(jsonPath("$.networkInfo.subnetMask").exists())
                 .andExpect(jsonPath("$.networkInfo.defaultGateway").exists())
-                .andExpect(jsonPath("$.networkInfo.externalIp").exists());
+                .andExpect(jsonPath("$.networkInfo.externalIp").exists())
+                .andExpect(jsonPath("$.computerBrand").exists())
+                .andExpect(jsonPath("$.computerModel").exists())
+                .andExpect(jsonPath("$.serialNumber").exists())
+                .andExpect(jsonPath("$.cpuModel").exists());
     }
 }

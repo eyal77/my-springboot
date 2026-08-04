@@ -15,6 +15,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,8 +63,13 @@ public class SystemService {
 
         NetworkInfo networkInfo = getNetworkDetails();
 
-        log.debug("getSystemInfo completed: host={}, freeBytes={}, interfacesParsed={}", 
-            hostname, totalFreeBytes, networkInfo != null);
+        String brand = getComputerBrand();
+        String model = getComputerModel();
+        String serial = getSerialNumber();
+        String cpu = getCpuModel();
+
+        log.debug("getSystemInfo completed: host={}, brand={}, model={}, serial={}, cpu={}, freeBytes={}, interfacesParsed={}", 
+            hostname, brand, model, serial, cpu, totalFreeBytes, networkInfo != null);
             
         return new SystemInfoResponse(
             hostname,
@@ -71,7 +79,11 @@ public class SystemService {
             totalFreeBytes,
             formatBytes(totalFreeBytes),
             diskDrives,
-            networkInfo
+            networkInfo,
+            brand,
+            model,
+            serial,
+            cpu
         );
     }
 
@@ -224,6 +236,140 @@ public class SystemService {
             log.warn("getExternalIp: HTTP request failed (client is likely offline or site is blocked): {}", e.getMessage());
             return "Offline/Unknown";
         }
+    }
+
+    private String getComputerBrand() {
+        String os = System.getProperty("os.name").toLowerCase();
+        log.debug("getComputerBrand: OS is {}", os);
+        if (os.contains("win")) {
+            return executeCommand("wmic csproduct get vendor", "Vendor");
+        } else if (os.contains("mac")) {
+            return "Apple";
+        } else {
+            // Linux/Unix
+            String brand = readFirstLine("/sys/class/dmi/id/sys_vendor");
+            if (brand == null || brand.isBlank()) {
+                brand = readFirstLine("/sys/class/dmi/id/chassis_vendor");
+            }
+            return (brand != null && !brand.isBlank()) ? brand.trim() : "Unknown";
+        }
+    }
+
+    private String getComputerModel() {
+        String os = System.getProperty("os.name").toLowerCase();
+        log.debug("getComputerModel: OS is {}", os);
+        if (os.contains("win")) {
+            return executeCommand("wmic csproduct get name", "Name");
+        } else if (os.contains("mac")) {
+            return executeCommandAndFindLine("sysctl -n hw.model", null);
+        } else {
+            // Linux/Unix
+            String model = readFirstLine("/sys/class/dmi/id/product_name");
+            return (model != null && !model.isBlank()) ? model.trim() : "Unknown";
+        }
+    }
+
+    private String getSerialNumber() {
+        String os = System.getProperty("os.name").toLowerCase();
+        log.debug("getSerialNumber: OS is {}", os);
+        if (os.contains("win")) {
+            return executeCommand("wmic bios get serialnumber", "SerialNumber");
+        } else if (os.contains("mac")) {
+            return executeCommandAndFindLine("system_profiler SPHardwareDataType", "Serial Number");
+        } else {
+            // Linux/Unix
+            String serial = readFirstLine("/sys/class/dmi/id/product_serial");
+            return (serial != null && !serial.isBlank()) ? serial.trim() : "Unknown";
+        }
+    }
+
+    private String getCpuModel() {
+        String os = System.getProperty("os.name").toLowerCase();
+        log.debug("getCpuModel: OS is {}", os);
+        if (os.contains("win")) {
+            return executeCommand("wmic cpu get name", "Name");
+        } else if (os.contains("mac")) {
+            return executeCommandAndFindLine("sysctl -n machdep.cpu.brand_string", null);
+        } else {
+            // Linux/Unix
+            try {
+                Path cpuinfo = Paths.get("/proc/cpuinfo");
+                if (Files.exists(cpuinfo)) {
+                    List<String> lines = Files.readAllLines(cpuinfo);
+                    for (String line : lines) {
+                        if (line.toLowerCase().contains("model name")) {
+                            String[] parts = line.split(":", 2);
+                            if (parts.length > 1) {
+                                return parts[1].trim();
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("getCpuModel failed on Unix: {}", e.getMessage());
+            }
+            return "Unknown";
+        }
+    }
+
+    private String readFirstLine(String filePath) {
+        try {
+            Path path = Paths.get(filePath);
+            if (Files.exists(path)) {
+                return Files.readAllLines(path).get(0).trim();
+            }
+        } catch (Exception e) {
+            log.error("readFirstLine failed for {}: {}", filePath, e.getMessage());
+        }
+        return null;
+    }
+
+    private String executeCommand(String command, String skipHeader) {
+        try {
+            Process process = Runtime.getRuntime().exec(command);
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    if (line.isEmpty()) continue;
+                    if (skipHeader != null && line.equalsIgnoreCase(skipHeader)) {
+                        continue;
+                    }
+                    return line;
+                }
+            }
+        } catch (Exception e) {
+            log.error("executeCommand failed for command {}: {}", command, e.getMessage());
+        }
+        return "Unknown";
+    }
+
+    private String executeCommandAndFindLine(String command, String searchKeyword) {
+        try {
+            Process process = Runtime.getRuntime().exec(command);
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (searchKeyword != null) {
+                        if (line.toLowerCase().contains(searchKeyword.toLowerCase())) {
+                            String[] parts = line.split(":", 2);
+                            if (parts.length > 1) {
+                                return parts[1].trim();
+                            }
+                            return line.trim();
+                        }
+                    } else {
+                        line = line.trim();
+                        if (!line.isEmpty()) return line;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("executeCommandAndFindLine failed for command {}: {}", command, e.getMessage());
+        }
+        return "Unknown";
     }
 
     private String formatBytes(long bytes) {

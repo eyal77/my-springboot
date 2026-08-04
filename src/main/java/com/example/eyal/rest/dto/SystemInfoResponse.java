@@ -10,5 +10,9 @@ public record SystemInfoResponse(
     long freeSpaceBytes,
     String freeSpaceFormatted,
     List<DiskInfo> diskDrives,
-    NetworkInfo networkInfo
+    NetworkInfo networkInfo,
+    String computerBrand,
+    String computerModel,
+    String serialNumber,
+    String cpuModel
 ) {}
