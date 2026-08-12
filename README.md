@@ -93,9 +93,12 @@ Launch the Spring Boot server:
 The server starts on port **`8080`**.
 
 ### Control Scripts (Windows)
-For convenience, scripts are provided to manage the server:
-- `start-server.bat`: Starts the Spring Boot application in the background.
-- `stop-server.bat`: Safely stops any running Java process listening on port `8080`.
+For convenience, scripts are provided to manage the services:
+- `start-control-panel.bat`: Starts the **Service Control Dashboard** server and automatically opens it in your default browser.
+- `start-all.bat`: Launches ZooKeeper (2181), Spring Boot Backend (8081), and Node.js Frontend (8080) simultaneously in the background.
+- `stop-all.bat`: Shuts down all application services (ports 2181, 8081, 8080).
+- `start-server.bat`: Starts only the Spring Boot application in the background.
+- `stop-server.bat`: Safely stops any running process listening on the backend port.
 
 ---
 
@@ -118,9 +121,12 @@ For convenience, scripts are provided to manage the server:
 
 ## Interactive Documentation & Portals
 
-1. **Dashboard Interface**: [http://localhost:8080/](http://localhost:8080/)
+1. **Service Control Dashboard**: [http://localhost:8090/](http://localhost:8090/)
+   - Start/Stop all services (ZooKeeper, Spring Backend, Node Frontend) with single-click actions.
+   - Monitors port binding states and streams console logs in real-time.
+2. **Dashboard Interface**: [http://localhost:8080/](http://localhost:8080/)
    - Log in using credentials: username **`root`** and password **`Project!!!111`**.
    - Manage administrators, view active system keys, copy tokens, or run diagnostics.
-2. **Interactive Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) (redirected automatically from `/swagger-ui.html`)
+3. **Interactive Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) (redirected automatically from `/swagger-ui.html`)
    - Explore endpoints interactively. Use the **Authorize** lock button in the top right to authenticate using your bearer token.
-3. **Raw OpenAPI JSON Spec**: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+4. **Raw OpenAPI JSON Spec**: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
