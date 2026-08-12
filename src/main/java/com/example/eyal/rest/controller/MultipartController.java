@@ -40,7 +40,7 @@ public class MultipartController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
             summary = "Upload files",
-            description = "Receives a multipart request, saves files, and parses text/value parts into a single upload.properties file."
+            description = "Receives a multipart request, saves files, and parses text/value parts into a single upload_<TIMESTAMP>.properties file."
     )
     public ResponseEntity<Map<String, Object>> uploadFiles(MultipartHttpServletRequest request) {
         log.debug("uploadFiles: Multipart request intercepted.");
@@ -128,9 +128,10 @@ public class MultipartController {
                 }
             }
 
-            // 3. Save collected properties into upload.properties file
+            // 3. Save collected properties into upload_<TIMESTAMP>.properties file
             if (!properties.isEmpty()) {
-                Path propertiesPath = uploadPath.resolve("upload.properties");
+                String propertiesFileName = "upload_" + System.currentTimeMillis() + ".properties";
+                Path propertiesPath = uploadPath.resolve(propertiesFileName);
                 log.debug("uploadFiles: Saving collected text parameters into properties file: {}", propertiesPath);
                 try (BufferedWriter writer = Files.newBufferedWriter(propertiesPath, StandardCharsets.UTF_8)) {
                     for (String key : properties.stringPropertyNames()) {
@@ -142,7 +143,7 @@ public class MultipartController {
 
                 Map<String, Object> fileDetails = new HashMap<>();
                 fileDetails.put("parameterName", "properties");
-                fileDetails.put("fileName", "upload.properties");
+                fileDetails.put("fileName", propertiesFileName);
                 fileDetails.put("fileSize", Files.size(propertiesPath));
                 fileDetails.put("contentType", "text/plain");
                 fileDetails.put("savedPath", propertiesPath.toString());

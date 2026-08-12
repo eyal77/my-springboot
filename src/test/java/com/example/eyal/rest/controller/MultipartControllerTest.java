@@ -109,14 +109,19 @@ class MultipartControllerTest {
                 "ADMIN".getBytes()
         );
 
-        mockMvc.perform(multipart("/api/multipart").file(textPart1).file(textPart2))
+        String responseContent = mockMvc.perform(multipart("/api/multipart").file(textPart1).file(textPart2))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
-                .andExpect(jsonPath("$.uploadedFiles[0].fileName").value("upload.properties"))
-                .andExpect(jsonPath("$.uploadedFiles[0].parameterName").value("properties"));
+                .andExpect(jsonPath("$.uploadedFiles[0].parameterName").value("properties"))
+                .andReturn().getResponse().getContentAsString();
+
+        // Extract filename from response string
+        String fileName = responseContent.split("\"fileName\":\"")[1].split("\"")[0];
+        org.junit.jupiter.api.Assertions.assertTrue(fileName.startsWith("upload_"));
+        org.junit.jupiter.api.Assertions.assertTrue(fileName.endsWith(".properties"));
 
         // Verify properties content
-        Path propFile = tempDir.resolve("upload.properties");
+        Path propFile = tempDir.resolve(fileName);
         List<String> lines = Files.readAllLines(propFile);
         org.junit.jupiter.api.Assertions.assertTrue(lines.contains("username=jane_doe"));
         org.junit.jupiter.api.Assertions.assertTrue(lines.contains("role=ADMIN"));

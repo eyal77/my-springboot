@@ -39,7 +39,7 @@ public class ZooKeeperRegistrationService implements ApplicationListener<Applica
             return;
         }
 
-        log.info("Starting ZooKeeper registration service. Connecting to {}", connectionString);
+        log.info("Starting ZooKeeper registration service. Connecting ({}) to {}", serviceName, connectionString);
         try {
             // Set up curator client with retries (will retry automatically in background)
             client = CuratorFrameworkFactory.builder()
