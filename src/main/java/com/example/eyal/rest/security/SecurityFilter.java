@@ -33,7 +33,7 @@ public class SecurityFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         String path = httpRequest.getRequestURI();
-        log.debug("doFilter entry: URI path intercepted: {}", path);
+        log.debug("doFilter entry: URI path intercepted: {} : {}", path, httpRequest.getRequestURL().toString());
 
         // 1. Allow public paths
         if (isPublicPath(path)) {
