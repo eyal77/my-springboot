@@ -23,6 +23,13 @@ function discoverBackend() {
     },
     (error, children, stats) => {
       if (error) {
+        backendUrl = null;
+        if (error.getCode() === zookeeper.Exception.NO_NODE) {
+          // Wait for Spring Cloud to create the path (or re-create it after a container cleanup)
+          console.warn('ZooKeeper Registry: /services/backend-service does not exist yet. Waiting for registration...');
+          zkClient.exists('/services/backend-service', () => discoverBackend(), () => {});
+          return;
+        }
         console.error('Failed to retrieve children of /services/backend-service:', error);
         return;
       }
@@ -60,13 +67,8 @@ function discoverBackend() {
 
 zkClient.once('connected', () => {
   console.log('Successfully connected to ZooKeeper at:', ZOOKEEPER_CONNECT);
-  // Ensure the parent services directory path exists, then run discovery
-  zkClient.mkdirp('/services/backend-service', (err) => {
-    if (err) {
-      console.error('Failed to create /services/backend-service base directory:', err);
-    }
-    discoverBackend();
-  });
+  // /services/backend-service is owned by Spring Cloud ZooKeeper Discovery; just watch it
+  discoverBackend();
 });
 
 zkClient.connect();

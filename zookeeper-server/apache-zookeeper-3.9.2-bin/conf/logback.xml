@@ -108,6 +108,9 @@
     <appender-ref ref="RFAAUDIT" />
   </logger-->
 
+  <!-- Suppress "Unable to read additional data from client" noise (clients/port probes closing the socket) -->
+  <logger name="org.apache.zookeeper.server.NIOServerCnxn" level="WARN"/>
+
   <root level="INFO">
     <appender-ref ref="CONSOLE" />
   </root>
