@@ -17,6 +17,10 @@ cd frontend
 start /B "" npm start
 cd ..
 
+echo Starting Service Control Dashboard (Port 8090)...
+start "Service Control Dashboard" node control-panel.js
+
 echo Services started.
+echo Access the Service Control Dashboard at: http://localhost:8090
 echo Access the application dashboard at: http://localhost:8080
 echo Access the API Swagger documentation at: http://localhost:8080/swagger-ui/index.html

@@ -242,7 +242,7 @@ public class SystemService {
         String os = System.getProperty("os.name").toLowerCase();
         log.debug("getComputerBrand: OS is {}", os);
         if (os.contains("win")) {
-            return executeCommand("wmic csproduct get vendor", "Vendor");
+            return executeCommand(winCim("Win32_ComputerSystemProduct", "Vendor"), null);
         } else if (os.contains("mac")) {
             return "Apple";
         } else {
@@ -259,7 +259,7 @@ public class SystemService {
         String os = System.getProperty("os.name").toLowerCase();
         log.debug("getComputerModel: OS is {}", os);
         if (os.contains("win")) {
-            return executeCommand("wmic csproduct get name", "Name");
+            return executeCommand(winCim("Win32_ComputerSystemProduct", "Name"), null);
         } else if (os.contains("mac")) {
             return executeCommandAndFindLine("sysctl -n hw.model", null);
         } else {
@@ -273,7 +273,7 @@ public class SystemService {
         String os = System.getProperty("os.name").toLowerCase();
         log.debug("getSerialNumber: OS is {}", os);
         if (os.contains("win")) {
-            return executeCommand("wmic bios get serialnumber", "SerialNumber");
+            return executeCommand(winCim("Win32_BIOS", "SerialNumber"), null);
         } else if (os.contains("mac")) {
             return executeCommandAndFindLine("system_profiler SPHardwareDataType", "Serial Number");
         } else {
@@ -287,7 +287,7 @@ public class SystemService {
         String os = System.getProperty("os.name").toLowerCase();
         log.debug("getCpuModel: OS is {}", os);
         if (os.contains("win")) {
-            return executeCommand("wmic cpu get name", "Name");
+            return executeCommand(winCim("Win32_Processor", "Name"), null);
         } else if (os.contains("mac")) {
             return executeCommandAndFindLine("sysctl -n machdep.cpu.brand_string", null);
         } else {
@@ -322,6 +322,11 @@ public class SystemService {
             log.error("readFirstLine failed for {}: {}", filePath, e.getMessage());
         }
         return null;
+    }
+
+    // wmic was removed from Windows 11; query the same WMI classes via PowerShell CIM
+    private String winCim(String wmiClass, String property) {
+        return "powershell -NoProfile -Command (Get-CimInstance " + wmiClass + ")." + property;
     }
 
     private String executeCommand(String command, String skipHeader) {

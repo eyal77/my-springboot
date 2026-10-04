@@ -35,3 +35,13 @@ build/
 *.dat
 tokens.dat
 users.dat
+zookeeper-server/data/version-2/log.3c
+zookeeper-server/data/version-2/log.45
+zookeeper-server/data/version-2/log.4e
+zookeeper-server/data/version-2/log.57
+zookeeper-server/data/version-2/log.60
+zookeeper-server/data/version-2/snapshot.3b
+zookeeper-server/data/version-2/snapshot.44
+zookeeper-server/data/version-2/snapshot.4d
+zookeeper-server/data/version-2/snapshot.56
+zookeeper-server/data/version-2/snapshot.5f
