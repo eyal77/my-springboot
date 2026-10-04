@@ -44,8 +44,9 @@ function discoverBackend() {
           }
 
           try {
-            const metadata = JSON.parse(data.toString('utf8'));
-            backendUrl = metadata.uri;
+            // Curator x-discovery ServiceInstance JSON written by Spring Cloud ZooKeeper Discovery
+            const instance = JSON.parse(data.toString('utf8'));
+            backendUrl = `http://${instance.address}:${instance.port}`;
             console.log(`ZooKeeper Discovery: Active backend instance resolved at -> ${backendUrl}`);
           } catch (e) {
             backendUrl = data.toString('utf8').trim();

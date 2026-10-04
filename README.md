@@ -17,6 +17,7 @@ A secure, high-performance Java Spring Boot application providing system telemet
 - **Custom Token Security Filter**: Lightweight interceptor validating bearer tokens via standard headers (`Authorization: Bearer <token>`) or query strings (`?token=<token>`).
 - **Interactive SPA Console**: Beautiful responsive interface built with glassmorphic cards, modern typography (Outfit & Plus Jakarta Sans), neon status states, and dynamic view tabs for user administration, key management, and API testing.
 - **API Documentation**: Automated Swagger/OpenAPI interactive portal.
+- **Service Discovery**: The backend registers itself in ZooKeeper via **Spring Cloud ZooKeeper Discovery** under `/services/backend-service`; the Node.js frontend discovers it there and proxies `/api` calls to it. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 

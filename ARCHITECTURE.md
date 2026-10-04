@@ -34,11 +34,11 @@ graph TD
     
     subgraph BackendService ["Backend Service (Port 8081)"]
         SpringBoot["Spring Boot API"]:::backend
-        RegService["ZK Registration Service"]:::backend
+        RegService["Spring Cloud ZooKeeper Discovery"]:::backend
     end
     
     subgraph ZooKeeperRegistry ["ZooKeeper Cluster (Port 2181)"]
-        ZNode["/services/backend-service/instance-localhost-8081<br>(Ephemeral Node)"]:::zookeeper
+        ZNode["/services/backend-service/{instance-id}<br>(Ephemeral Node)"]:::zookeeper
     end
 
     Client -->|1. Request UI & Assets| Express
@@ -65,11 +65,11 @@ sequenceDiagram
     
     Note over ZK,Frontend: Phase 1: Startup & Discovery
     Backend->>ZK: 1. Establish connection & create ephemeral node
-    Note over ZK: Node created:<br>/services/backend-service/instance-localhost-8081<br>Data: {"uri":"http://localhost:8081"}
+    Note over ZK: Node created:<br>/services/backend-service/{instance-id}<br>Data: {"name":"backend-service","address":"localhost","port":8081,...}
     
     Frontend->>ZK: 2. Connect & watch children of /services/backend-service
-    ZK-->>Frontend: 3. Return active instance list: ["instance-localhost-8081"]
-    Note over Frontend: Resolves data from node and caches backend URL:<br>http://localhost:8081
+    ZK-->>Frontend: 3. Return active instance list: ["{instance-id}"]
+    Note over Frontend: Reads address + port from the node and caches backend URL:<br>http://localhost:8081
     
     Note over Browser,Backend: Phase 2: Runtime Request Routing
     Browser->>Frontend: 4. Request HTML/CSS/JS dashboard
@@ -87,9 +87,11 @@ sequenceDiagram
 ## 4. Key ZooKeeper Concepts Used
 
 ### A. Service Registration (Ephemeral Nodes)
-When the Spring Boot backend starts up, it registers itself by creating a **Znode** (ZooKeeper node) path. We use ZooKeeper's **Ephemeral** node mode. 
+The Spring Boot backend registers itself using **Spring Cloud ZooKeeper Discovery** (`spring-cloud-starter-zookeeper-discovery`) - no hand-written registration code. On startup it creates an **Ephemeral** Znode at `/services/${spring.application.name}/<instance-id>` (here `/services/backend-service/...`) and removes it on graceful shutdown.
+* **Data format:** the node holds a standard [Curator Service Discovery](https://curator.apache.org/docs/service-discovery/) `ServiceInstance` JSON (`name`, `id`, `address`, `port`, `payload`, ...), so any Curator/Spring Cloud client can read it. The Node.js frontend reads `address` and `port` from it.
+* **Configuration** (`application.properties`): `spring.cloud.zookeeper.connect-string`, `spring.cloud.zookeeper.discovery.instance-host`. Disable with `spring.cloud.zookeeper.enabled=false` (used by the tests).
 * **What is an Ephemeral Node?** Unlike persistent nodes, ephemeral nodes only exist as long as the client session that created them is active.
-* **Why use it?** If the backend server crashes, gets killed, or experiences a network partition, its TCP session with ZooKeeper will expire. ZooKeeper will automatically delete the ephemeral node `/services/backend-service/instance-localhost-8081`. 
+* **Why use it?** If the backend server crashes, gets killed, or experiences a network partition, its TCP session with ZooKeeper will expire. ZooKeeper will automatically delete the ephemeral node once the session timeout (~60s by default) expires. 
 
 ### B. Service Discovery (Watchers)
 Our Node.js Express frontend server doesn't just read the backend address once. It places a **Watcher** (a listener event) on the parent folder `/services/backend-service`.
